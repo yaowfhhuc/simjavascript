@@ -71,7 +71,7 @@ var SimUtil = {
 	extend : function(child, parent, flag){
 		if(parent){
 			for(var key in parent){
-				if((!child[key]) && (key != "cType")){
+				if((!child[key]) && (key != "cType") && (key != "vType")){
 					child.prototype[key] = parent[key];
 				}
 			}
@@ -80,9 +80,19 @@ var SimUtil = {
 				if(child != String){
 					child.prototype["toString"] = parent.toString;
 				}
-				child.prototype.parent = parent;
+				child.prototype.parentClass = parent;
 			}
 		}
+		
+		return child;
+	},
+	extendAll : function(child, parent){
+		if(parent){
+			for(var key in parent){
+				child.prototype[key] = parent[key];
+			}
+		}
+		return child;
 	},
 	config : function(elem, cObj){
 		if((null != elem) && (typeof (cObj) == "object")){
@@ -111,11 +121,11 @@ var SimUtil = {
 	regGlobalVar : function(varName, varVal){
 		window[varName] = varVal;
 		return window[varName];
-	}
-	regClassProto : function(className){
+	},
+	regClassProto : function(clsName){
 		try{
-			return SimUtil.regGlobalVar("$_" + className.subString(0, 1).toLowerCase() + className.subString(1), eval("new " + className + "()"));
-		}catch(e){}
+			return SimUtil.regGlobalVar("$_" + clsName.substring(0, 1).toLowerCase() + clsName.substring(1), eval("new " + clsName + "()"));
+		}catch(e){alert(e.message)}
 	}
 };
 
@@ -728,7 +738,7 @@ SimUtil.querySelector = function(query){
 
 Sim.$ = function(elem){
 	if(elem){
-		elem = (elem.cType == String.cType) ? document.getElementById(elem) : elem;
+		elem = (elem.cType == String.prototype.cType) ? document.getElementById(elem) : elem;
 		return SimUtil.config(elem, Sim.DomUtil);
 	}
 };
@@ -833,51 +843,49 @@ var Component = function() {
 		
 		try {
 			for ( var x in this) {
-				if (Component.eventsRegex.test(x)) {
-					SimUtil.on(e, x, this.click);
+				if (Component._eventsRegex.test(x)) {
+					SimUtil.on(this._vElem, x, this.click);
 				} else if (x == "parent") {
 					if (!this.parent) {
 						// nothing
 					} else if (!this.parent.cType) {
-						this.parent.appendChild(e);
+						this.parent.appendChild(this._vElem);
 					} else {
-						this.parent.add(e);
+						this.parent.add(this._vElem);
 					}
 				} else if (x == "value") {
-					if (this.cType == "button") {
-						e.innerText = this[x];
-						e.textContent = this[x];
+					if (this.cType == "Button") {
+						this._vElem.innerText = this[x];
+						this._vElem.textContent = this[x];
 					}
 				} else {
 					if (x != "cType" && x != "eType" && x != "_vElem" && this[x]
 							&& typeof (this[x]) != "function") {
-						e[x] = this[x];
+						this._vElem[x] = this[x];
 						try{
-							e.setAttribute(x, this[x]);
+							this._vElem.setAttribute(x, this[x]);
 						}catch(ex){}
 					}
 
 					if (x == "innerText") {
-						e.innerText = this.innerText;
-						e.textContent = this.innerText;
+						this._vElem.innerText = this.innerText;
+						this._vElem.textContent = this.innerText;
 					}
 				}
 			}
 		} catch (exc) {
-			alert(exc.message);
-			alert(this.eType + " don't support the type:" + x);
+			alert(exc.message + " " + this.eType + " don't support the type:" + x);
 		}
 	}
 	
 	Component.prototype.element = function() {
 		
 		if(!this._vElem){
-			var e = document.createElement(this.eType);
-			e.value = this.value;
-			e.id = this.id || SimUtil.uniqueNum();
+			this._vElem = document.createElement(this.eType);
+			this._vElem.value = this.value;
+			this._vElem.id = this.id || SimUtil.uniqueNum();
 			
 			Component._copyAttrs.apply(this, arguments);
-			this._vElem = e;
 		}
 		
 		return this._vElem;
@@ -965,10 +973,10 @@ var Component = function() {
 				"Textarea":"textarea",
 				"Input":"input"
 			},
-			inputElements : {
+			_inputElements : {
 				"TextField":"text",
 				"RadioButton":"radio",
-				"Button":"button",
+				"IButton":"button",
 				"SubmitButton":"submit",
 				"ResetButton":"rest",
 				"PasswordField":"password",
@@ -993,42 +1001,39 @@ var Component = function() {
 				|| CompDataUtil.inputElements[cType];
 		}
 		
-		var compConstructs = {
-			_nonValueElements : function(){
-				this.hashcode = SimUtil.uniqueNum();
-				this.construct.apply(this, arguments);
-				
-				if(arguments.length > 2){
-					if(arguments[3]){
-						this.innerHTML = arguments[2];
-					}else{
-						this.appendChild(document.createTextNode(arguments[2]));
-					}
-				}
-			},
-			_valueElements :  function(){
-				this.hashcode = SimUtil.uniqueNum();
-				this.construct.apply(this, arguments);
-				
-				if(arguments.length > 2){
-					this.value = arguments[2];
-				}
-			},
-			_inputElements : compConstructs._valueElements
-		};
-		
 		for(var key in CompDataUtil){
 			
-			var elements = CompDataUtil[key];
-			var construct = compConstructs[key];
-			
 			var isInput = (key == "_inputElements");
+			
+			var elements = CompDataUtil[key];
 			
 			for(var clsName in elements){
 				var eType = elements[clsName];
 				
-				SimUtil.extend(
-					SimUtil.extend(SimUtil.regGlobalVar(clsName, construct), isInput ? $_input : $_component),
+				SimUtil.extendAll(
+					SimUtil.extend(SimUtil.regGlobalVar(clsName, 
+							(key == "_nonValueElements") ? function(){
+															this.hashcode = SimUtil.uniqueNum();
+															this.construct.apply(this, arguments);
+															
+															if(arguments.length > 2){
+																if(arguments[3]){
+																	this.innerHTML = arguments[2];
+																}else{
+																	this.appendChild(document.createTextNode(arguments[2]));
+																}
+															}
+														}
+														: function(){
+															this.hashcode = SimUtil.uniqueNum();
+															this.construct.apply(this, arguments);
+															
+															if(arguments.length > 2){
+																this.value = arguments[2];
+															}
+														}
+															
+							), isInput ? $_input : $_component),
 					{cType : clsName, eType : eType});
 				
 				SimUtil.regClassProto(clsName);
@@ -1054,27 +1059,26 @@ var Component = function() {
 		
 		Input.prototype.element = function() {
 			if (window.ActiveXObject) {
-				var e = document.createElement("<input type=\"" + this.eType
+				this._vElem = document.createElement("<input type=\"" + this.eType
 						+ "\" name=\"" + this.name + "\" />");
 			} else {
-				var e = document.createElement("input");
-				e.type = this.eType;
-				e.name = this.name;
+				this._vElem = document.createElement("input");
+				this._vElem.type = this.eType;
+				this._vElem.name = this.name;
 			}
 			
 			if(this.value){
 				try {
-					e.value = this.value;
+					this._vElem.value = this.value;
 				} catch (e) {
-					e["value"] = this.value;
+					//this._vElem["value"] = this.value;
 				}
 			}
 			
-			e.id = this.id;
+			this._vElem.id = this.id;
 			Component._copyAttrs.apply(this, arguments);
 			
-			this._vElem = e;
-			return e;
+			return this._vElem;
 		}
 	}
 }
