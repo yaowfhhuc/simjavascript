@@ -119,4 +119,10 @@ SimUtil.onload(function(){
 	Sim.$("btn9").bind("click", function(){
 		Sim.$("btn7").unbind();
 	});
+	
+	var btn = new Button("abc", "abc", "hello");
+	
+	
+	document.body.appendChild(btn.element());
+	
 });
