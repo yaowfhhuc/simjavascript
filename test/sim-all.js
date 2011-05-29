@@ -107,6 +107,15 @@ var SimUtil = {
 	delegate : function(func, time){
 		time = time || 1;
 		return setTimeout(func, time);
+	},
+	regGlobalVar : function(varName, varVal){
+		window[varName] = varVal;
+		return window[varName];
+	}
+	regClassProto : function(className){
+		try{
+			return SimUtil.regGlobalVar("$_" + className.subString(0, 1).toLowerCase() + className.subString(1), eval("new " + className + "()"));
+		}catch(e){}
 	}
 };
 
@@ -252,12 +261,16 @@ var Obj = function(){
 	Obj.prototype.toString = function(){
 		return this.cType + (this.id ? (" : " + this.id) : "" ) + " [" + this.hashCode() + "]";
 	}
+	
+	SimUtil.regClassProto("Obj");
 }
-
-var $_obj = new Obj();
 
 SimUtil.extend(String, $_obj);
 String.prototype.cType = "String";
+String.prototype.trim = function() {
+	return this.replace(/^\s+/g, "").replace(/\s+$/g, "");  
+}  
+
 
 var Thread = function(){
 	if(arguments.length>2){
@@ -276,8 +289,9 @@ var Thread = function(){
 		this.func = func;
 		return this;
 	}
+	
+	SimUtil.extend(Thread, $_obj);
 }
-SimUtil.extend(Thread, $_obj);
 
 var List = function() {
 	this.hashcode = SimUtil.uniqueNum();
@@ -344,9 +358,10 @@ var List = function() {
 		}
 		return false;
 	}
+	
+	SimUtil.extend(List, $_obj);
+	SimUtil.regClassProto("List");
 }
-SimUtil.extend(List, $_obj);
-var $_list = new List();
 
 var Map = function(){
 	this._map = {};
@@ -408,9 +423,10 @@ var Map = function(){
 	Map.prototype.size = function(){
 		return this.vSize;
 	}
+	
+	SimUtil.extend(Map, $_obj);
+	SimUtil.regClassProto("Map");
 }
-SimUtil.extend(Map, $_obj);
-var $_map = new Map();
 
 var Set = function(){
 	this.hashcode = SimUtil.uniqueNum();
@@ -438,9 +454,10 @@ var Set = function(){
 	Set.prototype.size = function(){
 		return this._container.size();
 	}
+	
+	SimUtil.extend(Set, $_obj);
+	SimUtil.regClassProto("Set");
 }
-SimUtil.extend(Set, $_obj);
-var $_set = new Set();
 
 var HashMap = function(tSize){
 	this.hashcode = SimUtil.uniqueNum();
@@ -616,9 +633,10 @@ var HashMap = function(tSize){
 	HashMap.prototype.size = function(){
 		return this._vSize;
 	}
+	
+	SimUtil.extend(HashMap, $_obj);
+	SimUtil.regClassProto("HashMap");
 };
-SimUtil.extend(HashMap, $_obj);
-var $_hashMap = new HashMap();
 
 var HashSet = function(tSize){
 	this.hashcode = SimUtil.uniqueNum();
@@ -646,9 +664,10 @@ var HashSet = function(tSize){
 	HashSet.prototype.size = function(){
 		return this._container.size();
 	}
+	
+	SimUtil.extend(HashSet, $_obj);
+	SimUtil.regClassProto("HashSet");
 };
-SimUtil.extend(HashSet, $_obj);
-var $_hashSet = new HashSet();
 
 Sim.DomUtil = {
 	funcs:[],
@@ -685,41 +704,73 @@ Sim.DomUtil = {
 			}
 		}
 		return this;
+	},
+	add: function(elem){
+		this.appendChild(elem);
+		return this;
+	},
+	remove: function(){
+		if(this.parentNode){
+			this.parentNode.removeChild(this);
+		}
+		return this;
 	}
 };
 
+//wait for next release
 SimUtil.querySelector = function(query){
 	if(document.querySelectorAll){
 		return document.querySelectorAll(query);
 	}else{
 		
 	}
+};
+
+Sim.$ = function(elem){
+	if(elem){
+		elem = (elem.cType == String.cType) ? document.getElementById(elem) : elem;
+		return SimUtil.config(elem, Sim.DomUtil);
+	}
+};
+
+try{
+	if($){}else{
+		$ = Sim.$;
+	}
+}catch(e){
+	$ = Sim.$;
 }
 
-Sim.$ = function(id){
-	var elem = false;
-	elem = (id.cType == String.cType) ? document.getElementById(id) : id;
-	
-	if(elem){
-		return SimUtil.config(elem, Sim.DomUtil);
-	}else{
-		return SimUtil.querySelector(id);
+Array.prototype.each = function(func){
+	for(var index = 0; index < this.length; index++){
+		func.call(this[index], index);
 	}
 };
 
 Sim.ref = {
-	CLASS_MAP : new HashMap(23),
+	_CLASS_MAP : new Map(),
 	SUB_TYPE : "children",
 	regClass : function(c){
 		if(c && c.prototype.cType){
-			Sim.ref.CLASS_MAP.put(c.prototype.cType, c);
+			Sim.ref._CLASS_MAP.put(c.prototype.cType, c);
 		}else{
 		   // skip now
 		}
 	},
+	_create : function(type){
+		if(Component.isInputType(type)){
+			var input = new Input();
+			input.vType = type;
+			return input;
+		}else if(Component.isSupportedClass(type)){
+			return SimUI.create(Component.getVType(type), type);
+		}else{
+			return SimUI.create(type, type);
+		}
+	},
 	build : function(cObj){
 		if(cObj && cObj.cType){
-			var obj = new Sim.ref.CLASS_MAP.get(cObj.cType);
+			var obj = Sim.ref._create(cObj.cType);
 			for(var v in cObj){
 			    var item = cObj[v];
 			    if (v == Sim.ref.SUB_TYPE && item && item.length && obj.add) {
@@ -733,17 +784,11 @@ Sim.ref = {
 			    	obj[v] = item;
 			    }
 			}
-		}	
+		}
 		  
 		if(cObj.id){
-		 	var code = "var " + cObj.id + " =false ; ";
-		    if(window.ActiveXObject){
-		    	window.execScript(code, "javascript");                         
-		    }else{
-		    	window.eval(code);
-		    }
-		    window[cObj.id] = obj;
-		}  
+		 	SimUtil.regGlobalVar(cObj.id, obj);
+		}
 	    return obj;
 	}
 }
@@ -752,70 +797,51 @@ var SimUI = {
 	fetch : function(id) {
 		var e = Sim.$(id);
 		var c = new Component(e.id, e.name);
-		c.vElem = e;
+		c._vElem = e;
 
 		return c;
 	},
-	create : function(tagName) {
-		var c = new Component();
-		c.cType = tagName;
-		return c;
+	create : function(eType, cType) {
+		return SimUtil.config(new Component(), {cType: cType, eType:eType});
 	},
 	clone : function(comp) {
 		var c = new Component();
 		c.cType = comp.cType;
+		c.eType = comp.eType;
 		for (key in comp) {
 			try {
 				c[key] = comp[key];
 			} catch (e) {}
 		}
+		//remove exists elem to create new
+		c._elem = null;
 		
 		return c;
 	}
 }
 
-var Component = function(i, n) {
+var Component = function() {
+	this.hashcode = SimUtil.uniqueNum();
+	this.construct.apply(this, arguments);
+	this._vElem = null;
+};
+{
 	Component.prototype.cType = "Component";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.vElem = null;
-
-	Component.prototype.create = function() {
-		var e = document.createElement(this.vType || this.cType);
-		e.value = this.value;
-		e.id = this.id || SimUtil.uniqueNum();
+	Component._eventsRegex = /^(click|change|mouseover|mouseout|dblclick|blur|focus|load|unload)$/;
+	
+	Component._copyAttrs = function(){
+		
 		try {
 			for ( var x in this) {
-				if (x == "click") {
-					SimUtil.on(e, "click", this.click);
-				} else if (x == "change") {
-					SimUtil.on(e, "change", this.change);
-				} else if (x == "mouseover") {
-					SimUtil.on(e, "mouseover", this.mouseover);
-				} else if (x == "mouseout") {
-					SimUtil.on(e, "mouseout", this.mouseout);
-				} else if (x == "dblclick") {
-					SimUtil.on(e, "dblclick", this.dblclick);
-				} else if (x == "blur") {
-					SimUtil.on(e, "blur", this.blur);
-				} else if (x == "focus") {
-					SimUtil.on(e, "focus", this.focus);
-				} else if (x == "load") {
-					SimUtil.on(e, "load", this.load);
+				if (Component.eventsRegex.test(x)) {
+					SimUtil.on(e, x, this.click);
 				} else if (x == "parent") {
 					if (!this.parent) {
 						// nothing
 					} else if (!this.parent.cType) {
-						try {
-							this.parent.appendChild(e);
-						} catch (e1) {
-						}
+						this.parent.appendChild(e);
 					} else {
-						try {
-							this.parent.add(e);
-						} catch (e2) {
-						}
+						this.parent.add(e);
 					}
 				} else if (x == "value") {
 					if (this.cType == "button") {
@@ -823,7 +849,7 @@ var Component = function(i, n) {
 						e.textContent = this[x];
 					}
 				} else {
-					if (x != "cType" && x != "vElem" && this[x]
+					if (x != "cType" && x != "eType" && x != "_vElem" && this[x]
 							&& typeof (this[x]) != "function") {
 						e[x] = this[x];
 						try{
@@ -837,345 +863,218 @@ var Component = function(i, n) {
 					}
 				}
 			}
-
 		} catch (exc) {
 			alert(exc.message);
-			alert((this.vType || this.cType) + " don't support the type:" + x);
+			alert(this.eType + " don't support the type:" + x);
 		}
-		this.vElem = e;
-		return e;
+	}
+	
+	Component.prototype.element = function() {
+		
+		if(!this._vElem){
+			var e = document.createElement(this.eType);
+			e.value = this.value;
+			e.id = this.id || SimUtil.uniqueNum();
+			
+			Component._copyAttrs.apply(this, arguments);
+			this._vElem = e;
+		}
+		
+		return this._vElem;
 	};
 
 	Component.prototype.add = function(elem) {
-		if (!this.vElem) {
-			this.create();
-		}
-		if (!elem.cType) {
-			this.vElem.appendChild(elem);
+		if (!elem.cType && !this._vElem) {
+			this.element().appendChild(elem);
 		} else {
-			if (!elem.vElem) {
-				elem.create();
-			}
-			this.vElem.appendChild(elem.vElem);
+			this.element().appendChild(elem.element());
 		}
 	};
 	
 	Component.prototype.setStyle = function(cName) {
-		if (!this.vElem) {
-			this.create();
-		}
-		if (this.vElem) {
-			this.vElem.className = cName;
-		}
+		this.element().className = cName;
+	};
+	
+	Component.prototype.getStyle = function(cName) {
+		return this.element().className;
+	};
+	
+	Component.prototype.addStyle = function(cName) {
+		this.element().className += cName;
+	};
+	
+	Component.prototype.removeStyle = function(cName) {
+		var cn = this.element().className || "";
+		while(cn.indexOf(cName)>=0)cn.replace(cName, "");
+		this.element().className = cn.trim();
 	};
 	
 	Component.prototype.removeAll = function() {
-		if (!this.vElem) {
-			this.create();
-		}
-		if (this.vElem) {
-			this.vElem.innerHTML = "";
-		}
+		this.element().innerHTML = "";
 	};
 
-	Component.prototype.setStyleValue = function(key, value) {
-		if (!this.vElem) {
-			this.create();
-		}
-		if (this.vElem) {
-			try {
-				this.vElem.style[key] = value;
-			} catch (e) {
-			}
-		}
+	Component.prototype.css = function(key, value) {
+		try {
+			this.element().style[key] = value;
+		} catch (e) {}
 	};
 
 	Component.prototype.setContent = function(content) {
-		if (!this.vElem) {
-			this.create();
-		}
 		try {
-			this.vElem.innerText = content;
-			this.vElem.textContent = content;
-		} catch (exc) {
+			this.element().innerText = content;
+			this.element().textContent = content;
+		} catch (e) {
 		}
 	};
 	
 	Component.prototype.get = function(key){
-		if (!this.vElem) {
-			this.create();
-		}
-		try {
-			return this.vElem[key]||this.vElem.getAttribute(key);
-		} catch (exc) {
-		}
+		return this.element()[key]||this.element().getAttribute(key);
 	};
 	
 	Component.prototype.set = function(key, value){
-		if (!this.vElem) {
-			this.create();
-		}
 		try {
-			this.vElem[key] = value;
-			this.vElem.setAttribute(key, value);
+			this.element()[key] = value;
+			this.element().setAttribute(key, value);
 		} catch (exc) {
 		}
 	};
 	
-};
-SimUtil.extend(Component, $_obj);
-var $_component = new Component();
-
-var Button = function(i, n, v) {
-	Button.prototype.cType = "button";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-
-SimUtil.extend(Button, $_component);
-
-var Panel = function(i, v) {
-	Panel.prototype.cType = "div";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.vElem = null;
-	this.innerText = v;
-
-	return this.vElem;
-};
-SimUtil.extend(Panel, $_component);
-
-var Label = function(i, v) {
-	Label.prototype.cType = "span";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.vElem = null;
-	this.innerText = v;
-
-	return this.vElem;
-};
-SimUtil.extend(Label, $_component);
-
-var Option = function(i, n, v) {
-	Option.prototype.cType = "option";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(Option, $_component);
-
-var Select = function(i, n) {
-	Select.prototype.cType = "select";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.vElem = null;
-	return this.vElem;
-
-	Select.prototype.add = function(elem) {
-		if (!this.vElem) {
-			this.create();
-		}
-
-		if (!elem.cType) {
-			this.vElem.options.add(elem);
-		} else {
-			if (!elem.vElem) {
-				elem.create();
+	SimUtil.extend(Component, $_obj);
+	SimUtil.regClassProto("Component");
+	
+	{
+		//define the classes for subclass of components.
+		
+		var CompDataUtil = {
+			_nonValueElements : {
+				"Div":"div",
+				"Span":"span",
+				"Label":"label",
+				"Table":"table",
+				"Tbody":"tbody",
+				"Thead":"thead",
+				"Th":"th",
+				"Tr":"tr",
+				"Td":"td",
+				"Br":"br"
+			},
+			_valueElements : {
+				"Select":"select",
+				"Option":"option",
+				"Button":"button",
+				"Textarea":"textarea",
+				"Input":"input"
+			},
+			inputElements : {
+				"TextField":"text",
+				"RadioButton":"radio",
+				"Button":"button",
+				"SubmitButton":"submit",
+				"ResetButton":"rest",
+				"PasswordField":"password",
+				"Checkbox":"checkbox",
+				"File":"file"
 			}
-			this.vElem.options.add(elem.vElem);
-		}
-	};
-
-	Select.prototype.remove = function(elem) {
-		if (!this.vElem) {
-			this.create();
-		}
-
-		if (!elem.cType) {
-			this.vElem.options.remove(elem);
-		} else {
-			if (!elem.vElem) {
-				elem.create();
-			}
-			this.vElem.options.remove(elem.vElem);
-		}
-	};
-};
-SimUtil.extend(Select, $_component);
-
-var Input = function() {
-	Input.prototype.cType = "input";
-	this.hashcode = Math.random();
-	Input.prototype.create = function() {
-		if (document.all) {
-			var e = document.createElement("<input type=\"" + this.type
-					+ "\" name=\"" + this.name + "\" />");
-		} else {
-			var e = document.createElement("input");
-			e.type = this.type;
-			e.name = this.name;
+		};
+		
+		Component.isInputType = function(cType){
+			return cType in CompDataUtil.inputElements;
+		};
+		
+		Component.isSupportedClass = function(cType){
+			return (cType in CompDataUtil._nonValueElements) 
+				|| (cType in CompDataUtil._valueElements) 
+				|| (cType in CompDataUtil.inputElements);
 		}
 		
-		if(this.value){
-			try {
-				e.value = this.value;
-			} catch (e) {
-				e["value"] = this.value;
-			}
+		Component.getVType = function(cType){
+			return CompDataUtil._nonValueElements[cType] 
+				|| CompDataUtil._valueElements[cType]
+				|| CompDataUtil.inputElements[cType];
 		}
 		
-		e.id = this.id;
-		try {
-			for ( var x in this) {
-				if (x == "click") {
-					SimUtil.on(e, "click", this.click);
-				} else if (x == "change") {
-					SimUtil.on(e, "change", this.change);
-				} else if (x == "mouseover") {
-					SimUtil.on(e, "mouseover", this.mouseover);
-				} else if (x == "mouseout") {
-					SimUtil.on(e, "mouseout", this.mouseout);
-				} else if (x == "dblclick") {
-					SimUtil.on(e, "dblclick", this.dblclick);
-				} else if (x == "blur") {
-					SimUtil.on(e, "blur", this.blur);
-				} else if (x == "focus") {
-					SimUtil.on(e, "focus", this.focus);
-				} else if (x == "load") {
-					SimUtil.on(e, "load", this.load);
-				} else if (x == "parent") {
-					if (!this.parent.cType) {
-						try {
-							this.parent.appendChild(e);
-						} catch (e1) {
-						}
-					} else {
-						try {
-							this.parent.add(e);
-						} catch (e2) {
-						}
-					}
-				} else {
-					if (x == "type") {
-						continue;
-					}
-					try {
-						e[x] = this[x];
-					} catch (e3) {
+		var compConstructs = {
+			_nonValueElements : function(){
+				this.hashcode = SimUtil.uniqueNum();
+				this.construct.apply(this, arguments);
+				
+				if(arguments.length > 2){
+					if(arguments[3]){
+						this.innerHTML = arguments[2];
+					}else{
+						this.appendChild(document.createTextNode(arguments[2]));
 					}
 				}
+			},
+			_valueElements :  function(){
+				this.hashcode = SimUtil.uniqueNum();
+				this.construct.apply(this, arguments);
+				
+				if(arguments.length > 2){
+					this.value = arguments[2];
+				}
+			},
+			_inputElements : compConstructs._valueElements
+		};
+		
+		for(var key in CompDataUtil){
+			
+			var elements = CompDataUtil[key];
+			var construct = compConstructs[key];
+			
+			var isInput = (key == "_inputElements");
+			
+			for(var clsName in elements){
+				var eType = elements[clsName];
+				
+				SimUtil.extend(
+					SimUtil.extend(SimUtil.regGlobalVar(clsName, construct), isInput ? $_input : $_component),
+					{cType : clsName, eType : eType});
+				
+				SimUtil.regClassProto(clsName);
 			}
-
-		} catch (exc) {
-			alert(exc.message);
-			alert(this.cType + " don't support the type:" + x);
 		}
-		this.vElem = e;
-		return e;
+		
+		//override add/remove function for Select
+		Select.prototype.add = function(elem) {
+			if (!elem.cType && !this._vElem) {
+				this.element().options.add(elem);
+			} else {
+				this.element().options.add(elem.element());
+			}
+		};
+
+		Select.prototype.remove = function(elem) {
+			if (!elem.cType && !this._vElem) {
+				this.element().options.remove(elem);
+			} else {
+				this.element().options.remove(elem.element());
+			}
+		};
+		
+		Input.prototype.element = function() {
+			if (window.ActiveXObject) {
+				var e = document.createElement("<input type=\"" + this.eType
+						+ "\" name=\"" + this.name + "\" />");
+			} else {
+				var e = document.createElement("input");
+				e.type = this.eType;
+				e.name = this.name;
+			}
+			
+			if(this.value){
+				try {
+					e.value = this.value;
+				} catch (e) {
+					e["value"] = this.value;
+				}
+			}
+			
+			e.id = this.id;
+			Component._copyAttrs.apply(this, arguments);
+			
+			this._vElem = e;
+			return e;
+		}
 	}
 }
-SimUtil.extend(Input, $_component);
-var $_input = new Input();
-
-var CheckBox = function(i, n, v) {
-	CheckBox.prototype.cType = "input";
-	CheckBox.prototype.type = "checkbox";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(CheckBox, $_input);
-
-var Radio = function(i, n, v) {
-	Radio.prototype.cType = "input";
-	Radio.prototype.type = "radio";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(Radio, $_input);
-
-var Submit = function(i, n, v) {
-	Submit.prototype.cType = "input";
-	TextField.prototype.type = "submit";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(Submit, $_input);
-
-var Reset = function(i, n, v) {
-	Reset.prototype.cType = "input";
-	Reset.prototype.type = "reset";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(Reset, $_input);
-
-var File = function(i, n, v) {
-	File.prototype.cType = "input";
-	File.prototype.type = "file";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(File, $_input);
-
-var TextField = function(i, n, v) {
-	TextField.prototype.cType = "input";
-	TextField.prototype.type = "text";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(TextField, $_input);
-
-var Password = function(i, n, v) {
-	Password.prototype.cType = "input";
-	Password.prototype.type = "password";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(Password, $_input);
-
-var TextArea = function(i, n, v) {
-	TextArea.prototype.cType = "textarea";
-	this.hashcode = Math.random();
-	this.id = i;
-	this.name = n;
-	this.value = v;
-	this.vElem = null;
-	return this.vElem;
-};
-SimUtil.extend(TextArea, $_component);
