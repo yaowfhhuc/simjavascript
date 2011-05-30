@@ -122,7 +122,38 @@ SimUtil.onload(function(){
 	
 	var btn = new Button("abc", "abc", "hello");
 	
+	SimUtil.config(btn, {
+		click:function(){
+			alert("OK");
+		}
+	});
 	
 	document.body.appendChild(btn.element());
+	
+	Sim.ref.build({
+		cType:"Div",
+		children:[
+          {
+			cType:"IButton",
+			value:"ibtn",
+			click:function(){
+        	  	alert("this is ibutton");
+          	}
+		},{
+			cType:"RadioButton",
+			value:"radiovalue",
+			click:function(){
+        	  	alert("this is radio");
+          	}
+		},{
+			cType:"Label",
+			innerText:"hello, this is a label",
+			title:"hehe!"
+		},{
+			cType:"TextField",
+			value:"this is the default value"
+		}],
+		parent:document.body
+	});
 	
 });
