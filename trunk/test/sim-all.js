@@ -71,7 +71,7 @@ var SimUtil = {
 	extend : function(child, parent, flag){
 		if(parent){
 			for(var key in parent){
-				if((!child[key]) && (key != "cType") && (key != "vType")){
+				if((!child[key]) && (key != "cType") && (key != "eType")){
 					child.prototype[key] = parent[key];
 				}
 			}
@@ -770,10 +770,10 @@ Sim.ref = {
 	_create : function(type){
 		if(Component.isInputType(type)){
 			var input = new Input();
-			input.vType = type;
+			input.eType = Component.getEType(type);
 			return input;
 		}else if(Component.isSupportedClass(type)){
-			return SimUI.create(Component.getVType(type), type);
+			return SimUI.create(Component.getEType(type), type);
 		}else{
 			return SimUI.create(type, type);
 		}
@@ -790,10 +790,21 @@ Sim.ref = {
 			    			obj.add(child);
 			    		}
 			    	}
+			    }else if(v == "parent"){
+			    	// ignore first
 			    }else{
 			    	obj[v] = item;
 			    }
 			}
+			
+			var parent = cObj["parent"];
+	    	if(parent){
+	    		if(parent.cType && parent.eType){
+	    			parent.add(obj);
+	    		}else{
+	    			parent.appendChild(obj.element());
+	    		}
+	    	}
 		}
 		  
 		if(cObj.id){
@@ -986,19 +997,19 @@ var Component = function() {
 		};
 		
 		Component.isInputType = function(cType){
-			return cType in CompDataUtil.inputElements;
+			return cType in CompDataUtil._inputElements;
 		};
 		
 		Component.isSupportedClass = function(cType){
 			return (cType in CompDataUtil._nonValueElements) 
 				|| (cType in CompDataUtil._valueElements) 
-				|| (cType in CompDataUtil.inputElements);
+				|| (cType in CompDataUtil._inputElements);
 		}
 		
-		Component.getVType = function(cType){
+		Component.getEType = function(cType){
 			return CompDataUtil._nonValueElements[cType] 
 				|| CompDataUtil._valueElements[cType]
-				|| CompDataUtil.inputElements[cType];
+				|| CompDataUtil._inputElements[cType];
 		}
 		
 		for(var key in CompDataUtil){
@@ -1063,6 +1074,7 @@ var Component = function() {
 						+ "\" name=\"" + this.name + "\" />");
 			} else {
 				this._vElem = document.createElement("input");
+				
 				this._vElem.type = this.eType;
 				this._vElem.name = this.name;
 			}
