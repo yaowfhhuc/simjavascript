@@ -6,7 +6,7 @@
  * licensed under the LGPL version 3 license.
  * http://www.gnu.org/licenses/lgpl.html
  *
- * Date: Sat Mar. 11 19:59:23 2011 +0800
+ * Date: Mon May 30 23:35:23 2011 +0800
  */
 
 var Sim = {
