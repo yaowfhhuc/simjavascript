@@ -130,6 +130,10 @@ SimUtil.onload(function(){
 	
 	document.body.appendChild(btn.element());
 	
+	btn.bind("mouseover", function(){
+		alert("hey, you over me...");
+	});
+	
 	Sim.ref.build({
 		cType:"Div",
 		children:[

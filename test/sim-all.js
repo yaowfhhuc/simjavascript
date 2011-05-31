@@ -784,18 +784,24 @@ Sim.ref = {
 			for(var v in cObj){
 			    var item = cObj[v];
 			    if (v == Sim.ref.SUB_TYPE && item && item.length && obj.add) {
-			    	for(var i = 0; i < item.length; i++){
-			    		var child = Sim.ref.build(item[i]);
-			    		if(child){
-			    			obj.add(child);
-			    		}
-			    	}
+			    	// ignore first
 			    }else if(v == "parent"){
 			    	// ignore first
 			    }else{
 			    	obj[v] = item;
 			    }
 			}
+			
+			var children = cObj[Sim.ref.SUB_TYPE];
+			if(children && children.length && obj.add){
+				for(var i = 0; i < children.length; i++){
+		    		var child = Sim.ref.build(children[i]);
+		    		if(child){
+		    			obj.add(child);
+		    		}
+		    	}
+			}
+			
 			
 			var parent = cObj["parent"];
 	    	if(parent){
@@ -897,6 +903,8 @@ var Component = function() {
 			this._vElem.id = this.id || SimUtil.uniqueNum();
 			
 			Component._copyAttrs.apply(this, arguments);
+			
+			Sim.$(this._vElem);
 		}
 		
 		return this._vElem;
@@ -957,6 +965,20 @@ var Component = function() {
 		} catch (exc) {
 		}
 	};
+	
+	Component.prototype.funcs = [];
+	
+	Component.prototype.bind = function(type, func){
+		this.element().bind(type, func);
+		return this;
+	};
+	
+	Component.prototype.unbind = function(type, func){
+		this.element().unbind(type, func);
+		return this;
+	};
+	
+	
 	
 	SimUtil.extend(Component, $_obj);
 	SimUtil.regClassProto("Component");
@@ -1069,26 +1091,31 @@ var Component = function() {
 		};
 		
 		Input.prototype.element = function() {
-			if (window.ActiveXObject) {
-				this._vElem = document.createElement("<input type=\"" + this.eType
-						+ "\" name=\"" + this.name + "\" />");
-			} else {
-				this._vElem = document.createElement("input");
-				
-				this._vElem.type = this.eType;
-				this._vElem.name = this.name;
-			}
 			
-			if(this.value){
-				try {
-					this._vElem.value = this.value;
-				} catch (e) {
-					//this._vElem["value"] = this.value;
+			if(!this._vElem){
+				if (window.ActiveXObject) {
+					this._vElem = document.createElement("<input type=\"" + this.eType
+							+ "\" name=\"" + this.name + "\" />");
+				} else {
+					this._vElem = document.createElement("input");
+					
+					this._vElem.type = this.eType;
+					this._vElem.name = this.name;
 				}
+				
+				if(this.value){
+					try {
+						this._vElem.value = this.value;
+					} catch (e) {
+						//this._vElem["value"] = this.value;
+					}
+				}
+				
+				this._vElem.id = this.id;
+				Component._copyAttrs.apply(this, arguments);
+				
+				Sim.$(this._vElem);
 			}
-			
-			this._vElem.id = this.id;
-			Component._copyAttrs.apply(this, arguments);
 			
 			return this._vElem;
 		}
