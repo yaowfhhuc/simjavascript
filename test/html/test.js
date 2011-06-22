@@ -130,34 +130,65 @@ SimUtil.onload(function(){
 	
 	document.body.appendChild(btn.element());
 	
-	btn.bind("mouseover", function(){
+	btn.on("mouseover", function(){
 		alert("hey, you over me...");
 	});
 	
 	Sim.ref.build({
 		cType:"Div",
+		className:"mainDiv",
+		id:"mDiv",
+		parent:document.body,
 		children:[
-          {
-			cType:"IButton",
-			value:"ibtn",
-			click:function(){
-        	  	alert("this is ibutton");
-          	}
-		},{
-			cType:"RadioButton",
-			value:"radiovalue",
-			click:function(){
-        	  	alert("this is radio");
-          	}
-		},{
-			cType:"Label",
-			innerText:"hello, this is a label",
-			title:"hehe!"
-		},{
-			cType:"TextField",
-			value:"this is the default value"
-		}],
-		parent:document.body
+		    {
+		    	cType:"Div",
+		    	children:[
+		    	    {
+		    	    	cType:"Label",
+		    	    	innerText:"ID",
+		    	    	className:"un-label"
+		    	    },
+		    	    {
+		    	    	cType:"TextField",
+		    	    	name:"username",
+		    	    	id:"username",
+		    	    	className:"un-text"
+		    	    }
+		    	]
+		    },
+		    {
+		    	cType:"Div",
+		    	children:[
+					{
+						cType:"Label",
+						innerText:"pwd",
+						className:"pwd-label"
+					},
+					{
+						cType:"PasswordField",
+						name:"password",
+						id:"password",
+						className:"pwd-text"
+					}
+		    	]
+		    },
+		    {
+		    	cType:"Div",
+		    	children:[
+		    	    {
+		    	    	cType:"Button",
+		    	    	value:"login",
+		    	    	click:"alert('login')"
+		    	    },
+		    	    {
+		    	    	cType:"Button",
+		    	    	value:"cancel",
+		    	    	click:function(){
+		    	    		alert("cancel");
+		    	    	}
+		    	    }
+		    	]
+		    }
+		]
 	});
-	
 });
