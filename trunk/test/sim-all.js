@@ -792,16 +792,17 @@ Sim.ref = {
 			    }
 			}
 			
-			var children = cObj[Sim.ref.SUB_TYPE];
-			if(children && children.length && obj.add){
-				for(var i = 0; i < children.length; i++){
-		    		var child = Sim.ref.build(children[i]);
-		    		if(child){
-		    			obj.add(child);
-		    		}
-		    	}
-			}
-			
+			setTimeout(function(){
+				var children = cObj[Sim.ref.SUB_TYPE];
+				if(children && children.length && obj.add){
+					for(var i = 0; i < children.length; i++){
+			    		var child = Sim.ref.build(children[i]);
+			    		if(child){
+			    			obj.add(child);
+			    		}
+			    	}
+				}
+			},1);
 			
 			var parent = cObj["parent"];
 	    	if(parent){
@@ -966,19 +967,15 @@ var Component = function() {
 		}
 	};
 	
-	Component.prototype.funcs = [];
-	
-	Component.prototype.bind = function(type, func){
+	Component.prototype.on = function(type, func){
 		this.element().bind(type, func);
 		return this;
 	};
 	
-	Component.prototype.unbind = function(type, func){
+	Component.prototype.off = function(type, func){
 		this.element().unbind(type, func);
 		return this;
 	};
-	
-	
 	
 	SimUtil.extend(Component, $_obj);
 	SimUtil.regClassProto("Component");
@@ -1094,11 +1091,16 @@ var Component = function() {
 			
 			if(!this._vElem){
 				if (window.ActiveXObject) {
-					this._vElem = document.createElement("<input type=\"" + this.eType
-							+ "\" name=\"" + this.name + "\" />");
+					try{
+						this._vElem = document.createElement("<input type=\"" + this.eType
+								+ "\" name=\"" + this.name + "\" />");
+					}catch(e){
+						this._vElem = document.createElement("input");
+						this._vElem.type = this.eType;
+						this._vElem.name = this.name;
+					}
 				} else {
 					this._vElem = document.createElement("input");
-					
 					this._vElem.type = this.eType;
 					this._vElem.name = this.name;
 				}
