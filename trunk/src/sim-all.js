@@ -269,7 +269,7 @@ var Obj = function(){
 	}
 
 	Obj.prototype.toString = function(){
-		return this.cType + (this.id ? (" : " + this.id) : "" ) + " [" + this.hashCode() + "]";
+		return this.cType + (this.id ? (" : " + this.id) : "" ) + " [" + this.hashcode + "]";
 	}
 	
 	SimUtil.regClassProto("Obj");
