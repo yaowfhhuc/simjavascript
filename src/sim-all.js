@@ -1011,7 +1011,8 @@ var Component = function() {
 				"ResetButton":"rest",
 				"PasswordField":"password",
 				"Checkbox":"checkbox",
-				"File":"file"
+				"File":"file",
+				"HiddenField":"hidden"
 			}
 		};
 		
