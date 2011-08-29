@@ -195,14 +195,18 @@ Sim.Ajax = function(cObj){
 		xmlHttpRequest = false;
 	}
 	
-	var params = null;
-	var getParams = null;
+	var params = "";
+	var getParams = "";
 	if(cObj.params){
-		params = "";
-		for(var x in cObj.params){
-			params += ("&"+x+"="+cObj.params[x]);
+		
+		if(cObj.params.cType == String.prototype.cType){
+			params = cObj.params;
+		}else{
+			for(var x in cObj.params){
+				params += ("&"+x+"="+cObj.params[x]);
+			}
+			params = params.substring(1);
 		}
-		params = params.substring(1);
 	}
 	
 	if(!cObj.nocache){
@@ -213,7 +217,7 @@ Sim.Ajax = function(cObj){
 		}
 	}
 	
-	if(params && !cObj.method || cObj.method == "GET"){
+	if(params && (!cObj.method || cObj.method == "GET")){
 		if(cObj.url.indexOf("?")){
 			getParams = "?" + params;
 		}else{
@@ -223,6 +227,15 @@ Sim.Ajax = function(cObj){
 	}
 	
 	xmlHttpRequest.open(cObj.method || "GET", cObj.url + getParams, cObj.async || true);
+	
+	try{
+		if (xmlHttpRequest.overrideMimeType){
+			xmlHttpRequest.overrideMimeType("application/x-www-form-urlencoded");
+		}else{
+			xmlHttpRequest.setRequestHeader("Content-Type","application/x-www-form-urlencoded"); 　　
+		}
+	}catch(e){}
+	
 	xmlHttpRequest.send(params); 
 	
 	if(cObj.success || cObj.error){
