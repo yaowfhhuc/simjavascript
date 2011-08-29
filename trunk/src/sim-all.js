@@ -209,7 +209,7 @@ Sim.Ajax = function(cObj){
 		}
 	}
 	
-	if(!cObj.nocache){
+	if(!cObj.nocache && "POST" != cObj.method){
 		if(params){
 			params += "&token="+new Date();
 		}else{
@@ -231,8 +231,9 @@ Sim.Ajax = function(cObj){
 	try{
 		if (xmlHttpRequest.overrideMimeType){
 			xmlHttpRequest.overrideMimeType("application/x-www-form-urlencoded");
+			xmlHttpRequest.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 		}else{
-			xmlHttpRequest.setRequestHeader("Content-Type","application/x-www-form-urlencoded"); 　　
+			xmlHttpRequest.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 		}
 	}catch(e){}
 	
