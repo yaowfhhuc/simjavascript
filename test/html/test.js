@@ -138,7 +138,7 @@ SimUtil.onload(function(){
 		cType:"Div",
 		className:"mainDiv",
 		id:"mDiv",
-		parent:document.body,
+		parent:SimUI.fetch("mDiv"),
 		children:[
 		    {
 		    	cType:"Div",
@@ -191,4 +191,19 @@ SimUtil.onload(function(){
 		    }
 		]
 	});
+	
+	var x = {
+		"key1":1,
+		"key2":2.5,
+		"key3":"test",
+		"key4":new Date(),
+		"key5":[1,2,3],
+		"key6":undefined,
+		"key7":{
+			k11:"test",
+			k23:"val"
+		}
+	};
+	
+	alert(SimUtil.asJson(x));
 });
