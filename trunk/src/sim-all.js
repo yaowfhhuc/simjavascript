@@ -21,6 +21,7 @@ var SimUtil = {
 		domReady : 0,
 		count : 0
 	},
+	globalVals : {},
 	uniqueNum : function(){
 		return new Date().getTime() + (SimUtil._cache.count++);
 	},
@@ -119,13 +120,66 @@ var SimUtil = {
 		return setTimeout(func, time);
 	},
 	regGlobalVar : function(varName, varVal){
-		window[varName] = varVal;
-		return window[varName];
+		try{
+			return window[varName] = varVal;
+		}catch(e){
+			// ie 6 problem
+			return SimUtil.globalVals[varName] = varVal;
+		}
 	},
 	regClassProto : function(clsName){
 		try{
 			return SimUtil.regGlobalVar("$_" + clsName.substring(0, 1).toLowerCase() + clsName.substring(1), eval("new " + clsName + "()"));
 		}catch(e){alert(e.message)}
+	},
+
+	isArray : function(obj){   
+		return Object.prototype.toString.call(obj) === '[object Array]';  
+	},
+	isDate : function(obj){
+		return obj instanceof Date;
+	},
+	isNum : function(obj){
+		return typeof(obj) === "number";
+	},
+	isString : function(obj){
+		return typeof(obj) ===  "string";
+	},
+	asJson : function(obj) {
+		var rst = "";
+		if(obj === undefined || obj === null){
+			rst = null;
+		}else if(obj === true || obj === false || SimUtil.isNum(obj)){
+			rst = obj;
+		}else if(SimUtil.isDate(obj)){
+			rst = obj.getTime();
+		}else if(SimUtil.isString(obj)){
+			if(obj.indexOf('"') != -1){
+				obj = obj.replace("\"", "\\\"");
+			}
+			rst = "\"" + obj + "\"";
+		}else if(SimUtil.isArray(obj)){
+			rst += "[";
+			for(var i = 0; i < obj.length; i++) {
+				rst+= SimUtil.asJson(obj[i]) + ","; 
+			}
+			if(rst.length > 2) {
+				rst = rst.substring(0, rst.length - 1);
+			}
+			rst += "]";
+		}else{
+			rst += "{";
+			for(var key in obj) {
+				rst+= "\"" + key + "\"" + ":" + SimUtil.asJson(obj[key]) + ","; 
+			}
+			
+			if(rst.length > 2) {
+				rst = rst.substring(0, rst.length - 1);
+			}
+			
+			rst += "}";
+		}
+		return rst;
 	}
 };
 
@@ -820,7 +874,7 @@ Sim.ref = {
 			
 			var parent = cObj["parent"];
 	    	if(parent){
-	    		if(parent.cType && parent.eType){
+	    		if(parent.cType){
 	    			parent.add(obj);
 	    		}else{
 	    			parent.appendChild(obj.element());
@@ -916,6 +970,11 @@ var Component = function() {
 			this._vElem = document.createElement(this.eType);
 			this._vElem.value = this.value;
 			this._vElem.id = this.id || SimUtil.uniqueNum();
+			
+			// fix the ie7 option no prototype issue
+			if(!this._vElem.prototype) {
+				this._vElem.prototype = {};
+			}
 			
 			Component._copyAttrs.apply(this, arguments);
 			
